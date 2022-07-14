@@ -5,7 +5,6 @@ const apiKey = fs.readFileSync('./APIKEY.txt', 'utf8');
 
 const util = require('util');
 const axios = require("axios");
-const db = require('ep_etherpad-lite/node/db/DB');
 
 const URL = "http://192.168.1.8:8880";
 
@@ -16,7 +15,7 @@ const etherpad = api.connect({
   port: 9001,
 })
 
-const SessionID = {
+const sesid = {
   sessionID: null
 } 
 
@@ -59,7 +58,7 @@ exports.padLoad = function (pad, context) {
         globalGroupID = data['groupID'];
         console.log('globalGroupID: ', globalGroupID, '\n')
       }
-    })  
+})  
 }
 
 const universalPadUsers = [];
@@ -67,7 +66,7 @@ let uniqueItems = [];
 let isUpdated = 0;
 
 exports.padUpdate = function (hook_name, context) {
-    console.log('Pad was UPDATED | CONTEXT ===============>', context)
+    console.log('Pad was UPDATED', context)
 
     let argss = {
       padID: context.pad.id
@@ -79,10 +78,6 @@ exports.padUpdate = function (hook_name, context) {
       if(error) console.error('Error during api call for pad: ' + error.message)
       else {
       console.log('Current number of PadUsers: ', JSON.stringify(data))
-
-      // if there are multiple users using a pad, then create a group.
-      // maintain a global number of users, 
-
       etherpad.padUsers(argss, function(error, data) {
         if(error) console.error('Error during api call for pad: ' + error.message)
         else {
@@ -90,15 +85,13 @@ exports.padUpdate = function (hook_name, context) {
             data['padUsers'].map(iter => {
               universalPadUsers.push(iter.id);
             })
-          
-        }
+          }
       })
 
       uniqueItems = [...new Set(universalPadUsers)]
       console.log('Unique items: ', uniqueItems)
 
       if (isUpdated != uniqueItems.length) {
-
         console.log('isUpdated length: ', isUpdated)
         console.log('uniqueItems length: ', uniqueItems.length)
 
@@ -123,19 +116,21 @@ exports.padUpdate = function (hook_name, context) {
     }
     })
 
+    console.log('\n')
+
     etherpad.listAllGroups(function (error, data) {
       if(error) console.error('Error during api call for pad: ' + error.message)
       else { 
         console.log('Group list: ', JSON.stringify(data))
       }
-      })
+    })
+
+    console.log('\n')
 }
 
 exports.userLeave = function(hook, session, callback) {
   console.log('%s left pad %s', session.author, session.padId, session);
 
-  // After the user has left the session the pad gets stored in the actual DB
-  // Can be used to invoke a function that does things after saving to the DB
   callback(new Promise(
     (resolve, reject) => {
         resolve(console.log('USER HAS LEFT THE PAD NOW'))
