@@ -1,7 +1,7 @@
 {
-  "name": "ep_demo",
+  "name": "ep_sciencemesh",
   "version": "1.0.0",
-  "description": "demo plugin",
+  "description": "Etherpad plugin to support collaborative sharing leveraging cs3 wopi server.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
