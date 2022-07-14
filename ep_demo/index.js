@@ -62,6 +62,10 @@ exports.padLoad = function (pad, context) {
     })  
 }
 
+const universalPadUsers = [];
+let uniqueItems = [];
+let isUpdated = 0;
+
 exports.padUpdate = function (hook_name, context) {
     console.log('Pad was UPDATED | CONTEXT ===============>', context)
 
@@ -82,10 +86,40 @@ exports.padUpdate = function (hook_name, context) {
       etherpad.padUsers(argss, function(error, data) {
         if(error) console.error('Error during api call for pad: ' + error.message)
         else {
-          console.log('List of PadUsers: ', JSON.stringify(data))            
+          console.log('List of PadUsers: ', JSON.stringify(data))  
+            data['padUsers'].map(iter => {
+              universalPadUsers.push(iter.id);
+            })
+          
         }
       })
 
+      uniqueItems = [...new Set(universalPadUsers)]
+      console.log('Unique items: ', uniqueItems)
+
+      if (isUpdated != uniqueItems.length) {
+
+        console.log('isUpdated length: ', isUpdated)
+        console.log('uniqueItems length: ', uniqueItems.length)
+
+        isUpdated = uniqueItems.length;
+
+        let args = {
+          groupID: globalGroupID,
+          authorID: globalAuthorID,
+          validUntil: 1657815968
+        };
+        
+        console.log('groupID: ', globalGroupID, '\n', 'authorID: ', globalAuthorID, '\n')
+
+        etherpad.createSession(args, function (error, data) {
+          if(error) console.error('Error during api call for pad: ' + error.message)
+          else {
+            console.log(JSON.stringify(data))
+          } 
+        })
+      }
+  
     }
     })
 
