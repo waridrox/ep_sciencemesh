@@ -1,0 +1,12 @@
+{
+  "parts": [
+    {
+      "name": "main",
+      "client_hooks": {
+      },
+      "hooks": {
+        "padLoad": "ep_demo/index.js:padLoad"
+      }
+    }
+  ]
+}

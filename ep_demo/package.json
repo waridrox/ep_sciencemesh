@@ -1,0 +1,17 @@
+{
+  "name": "ep_demo",
+  "version": "1.0.0",
+  "description": "demo plugin",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "waridrox",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.27.2",
+    "body-parser": "^1.20.0",
+    "etherpad-lite-client": "^0.9.0",
+    "express": "^4.18.1"
+  }
+}
