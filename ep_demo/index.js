@@ -1,69 +1,67 @@
 'use strict';
 
-var fs = require('fs');
+const fs = require('fs');
 const apiKey = fs.readFileSync('./APIKEY.txt', 'utf8');
+const api = require('etherpad-lite-client')
 
-const util = require('util');
+const wopiURL = "http://192.168.1.8:8880";
+
 const axios = require("axios");
 
-const URL = "http://192.168.1.8:8880";
+let globalAuthorID = null;
+let globalGroupID = null;
 
-const api = require('etherpad-lite-client')
+let universalPadUsers = [];
+let uniqueItems = [];
+let isUpdated = 0;
+
 const etherpad = api.connect({
   apikey: apiKey,
   host: 'localhost',
   port: 9001,
 })
 
-const sesid = {
-  sessionID: null
-} 
-
-
 const postData = async (pad_content) => {
 
-    axios({
-      method: "POST",
-      url: URL + `/wopi/bridge/${pad_content.pad.id}`,
-      data: data,
-      headers: { 'Content-Type': 'application/json; charset=utf-8',
-        'Content-Length': data.length,
-        'X-EFSS-Metadata': data,
-        'accept': '*/*' },
-    })
-      .then(function (response) {
-        console.log(response);
-      })
-      .catch(function (response) {
-        console.log(response);
-      });
-    };
+  let metadata = JSON.stringify({
+    'authorId': pad_content.author,
+    'padId': pad_content.pad.id,
+    'apiKey': apiKey
+  });
 
-exports.padCreate = function (pad, context) {
-    console.log(pad, context)
-}
-
-let globalAuthorID = null;
-let globalGroupID = null;
+  axios({
+    method: "POST",
+    url: wopiURL + `/wopi/bridge/${pad_content.pad.id}`,
+    data: metadata,
+    headers: { 
+      'Content-Type': 'application/json; charset=utf-8',
+      'Content-Length': data.length,
+      'X-EFSS-Metadata': data,
+      'accept': '*/*' 
+    },
+  })
+  .then(function (response) {
+    console.log(response);
+  })
+  .catch(function (response) {
+    console.log(response);
+  });
+};
 
 exports.padLoad = function (pad, context) {
-    console.log('Pad was LOADED')
-    console.log(pad, context)
+  console.log('Pad was LOADED')
+  console.log(pad, context)
 
-    etherpad.createGroup(function (error, data) {
-      if(error) console.error('Error during api call for pad: ' + error.message)
-      else { 
-        console.log('createGroup: ', JSON.stringify(data))
+  etherpad.createGroup(function (error, data) {
+    if(error) console.error('Error during api call for pad: ' + error.message)
+    else { 
+      console.log('createGroup: ', JSON.stringify(data))
 
-        globalGroupID = data['groupID'];
-        console.log('globalGroupID: ', globalGroupID, '\n')
-      }
-})  
+      globalGroupID = data['groupID'];
+      console.log('globalGroupID: ', globalGroupID, '\n')
+    }
+  }) 
 }
-
-const universalPadUsers = [];
-let uniqueItems = [];
-let isUpdated = 0;
 
 exports.padUpdate = function (hook_name, context) {
     console.log('Pad was UPDATED', context)
@@ -72,7 +70,6 @@ exports.padUpdate = function (hook_name, context) {
       padID: context.pad.id
     }
 
-    // globalAuthorID = context.pad.id;
     globalAuthorID = context.author
     etherpad.padUsersCount(argss, function(error, data) {
       if(error) console.error('Error during api call for pad: ' + error.message)
@@ -112,7 +109,7 @@ exports.padUpdate = function (hook_name, context) {
           } 
         })
       }
-  
+      postData(context);
     }
     })
 
@@ -137,10 +134,6 @@ exports.userLeave = function(hook, session, callback) {
     }
   ))
   return;
-}
-
-exports.exportFileName = function(hook, padId, callback){
-  callback("cernbox_etherpad_"+padId);
 }
 
 exports.padRemove = function (pad_id) {
