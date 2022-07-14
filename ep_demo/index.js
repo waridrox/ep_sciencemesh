@@ -1,51 +1,68 @@
 'use strict';
 
+var fs = require('fs');
+const apiKey = fs.readFileSync('./APIKEY.txt', 'utf8');
+
+const util = require('util');
 const axios = require("axios");
 const db = require('ep_etherpad-lite/node/db/DB');
-const URL = "http://192.168.1.5:8880";
+
+const URL = "http://192.168.1.8:8880";
+
+const api = require('etherpad-lite-client')
+const etherpad = api.connect({
+  apikey: apiKey,
+  host: 'localhost',
+  port: 9001,
+})
 
 const postData = async (pad_content) => {
 
-  // const params = {}
+  let data = JSON.stringify({
+    'authorId': pad_content.author,
+    'padId': pad_content.pad.id,
+    'apiKey': apiKey
+});
+    axios({
+      method: "POST",
+      url: URL + `/wopi/bridge/${pad_content.pad.id}`,
+      data: data,
+      headers: { 'Content-Type': 'application/json; charset=utf-8',
+        'Content-Length': data.length,
+        'X-EFSS-Metadata': data,
+        'accept': '*/*' },
+    })
+      .then(function (response) {
+        console.log(response);
+      })
+      .catch(function (response) {
+        console.log(response);
+      });
+    };
 
-  // get the metadata and store it in the db or the session
-  // the wopi server will pull the content every now and then and decide to save
-  
-  // WOPI endpoint - wopi/bridge/pad_id/
-  try {
-    const dbkey = await db.get('X-EFSS-Metadata')  
-    console.log('META - DATA', dbkey)
-
-    const { data } = await axios.post(URL + `/wopi/bridge/${pad_content.pad.id}`, null,
-    {
-      params: {
-        isUserActive: true
-      },
-      headers: {
-        'Content-Type': 'application/json',
-      }
-  });
-
-  console.log(' ========> Data: ', data)
-  } catch (error) {
-    console.log('Error: ', error)
-  }
-}
-
-exports.padCreate = function (pad, author) {
-    console.log(`Pad: ${pad} || Author: ${author}`)
+exports.padCreate = function (pad, context) {
+    console.log(pad, context)
 }
 
 exports.padLoad = function (pad, context) {
     console.log('Pad was LOADED')
+    console.log(pad, context)
 }
 
-exports.padUpdate = async function (pad, context) {
-    await db.set(`'X-EFSS-Metadata': ${context}`);
+exports.padUpdate = function (hook_name, context) {
 
     console.log('Pad was UPDATED | CONTEXT ===============>', context)
 
     postData(context);
+
+    var args = {
+      padID: context.pad.id
+    }
+    etherpad.padUsers(args, function(error, data) {
+      if(error) console.error('Error during api call for pad: ' + error.message)
+      else console.log('Current PadUsers: ', JSON.stringify(data))
+    })
+
 }
 
 exports.userLeave = function(hook, session, callback) {
