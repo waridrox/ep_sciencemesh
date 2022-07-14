@@ -16,13 +16,13 @@ const etherpad = api.connect({
   port: 9001,
 })
 
+const SessionID = {
+  sessionID: null
+} 
+
+
 const postData = async (pad_content) => {
 
-  let data = JSON.stringify({
-    'authorId': pad_content.author,
-    'padId': pad_content.pad.id,
-    'apiKey': apiKey
-});
     axios({
       method: "POST",
       url: URL + `/wopi/bridge/${pad_content.pad.id}`,
@@ -44,25 +44,57 @@ exports.padCreate = function (pad, context) {
     console.log(pad, context)
 }
 
+let globalAuthorID = null;
+let globalGroupID = null;
+
 exports.padLoad = function (pad, context) {
     console.log('Pad was LOADED')
     console.log(pad, context)
+
+    etherpad.createGroup(function (error, data) {
+      if(error) console.error('Error during api call for pad: ' + error.message)
+      else { 
+        console.log('createGroup: ', JSON.stringify(data))
+
+        globalGroupID = data['groupID'];
+        console.log('globalGroupID: ', globalGroupID, '\n')
+      }
+    })  
 }
 
 exports.padUpdate = function (hook_name, context) {
-
     console.log('Pad was UPDATED | CONTEXT ===============>', context)
 
-    postData(context);
-
-    var args = {
+    let argss = {
       padID: context.pad.id
     }
-    etherpad.padUsers(args, function(error, data) {
+
+    // globalAuthorID = context.pad.id;
+    globalAuthorID = context.author
+    etherpad.padUsersCount(argss, function(error, data) {
       if(error) console.error('Error during api call for pad: ' + error.message)
-      else console.log('Current PadUsers: ', JSON.stringify(data))
+      else {
+      console.log('Current number of PadUsers: ', JSON.stringify(data))
+
+      // if there are multiple users using a pad, then create a group.
+      // maintain a global number of users, 
+
+      etherpad.padUsers(argss, function(error, data) {
+        if(error) console.error('Error during api call for pad: ' + error.message)
+        else {
+          console.log('List of PadUsers: ', JSON.stringify(data))            
+        }
+      })
+
+    }
     })
 
+    etherpad.listAllGroups(function (error, data) {
+      if(error) console.error('Error during api call for pad: ' + error.message)
+      else { 
+        console.log('Group list: ', JSON.stringify(data))
+      }
+      })
 }
 
 exports.userLeave = function(hook, session, callback) {
