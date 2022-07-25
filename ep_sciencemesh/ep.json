@@ -5,7 +5,9 @@
       "client_hooks": {
       },
       "hooks": {
-        "padLoad": "ep_demo/index.js:padLoad"
+        "padLoad": "ep_sciencemesh/index.js:padLoad",
+        "padUpdate": "ep_sciencemesh/index.js:padUpdate",
+        "padCreate": "ep_sciencemesh/index.js:padCreate"
       }
     }
   ]
