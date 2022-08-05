@@ -1,17 +1,31 @@
 {
   "name": "ep_sciencemesh",
-  "version": "1.0.0",
+  "version": "0.0.2",
   "description": "Etherpad plugin to support collaborative sharing leveraging cs3 wopi server.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/waridrox/ep_sciencemesh.git"
+  },
+  "keywords": [
+    "etherpad",
+    "plugin",
+    "sciencemesh",
+    "cern"
+  ],
   "author": "waridrox",
   "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/waridrox/ep_sciencemesh.git/issues"
+  },
+  "homepage": "https://github.com/waridrox/ep_sciencemesh#readme",
   "dependencies": {
     "axios": "^0.27.2",
     "body-parser": "^1.20.0",
-    "etherpad-lite-client": "^0.9.0",
-    "express": "^4.18.1"
+    "express": "^4.18.1",
+    "lodash": "^4.17.21"
   }
 }

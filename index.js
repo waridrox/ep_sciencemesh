@@ -1,7 +1,7 @@
 'use strict';
 
 const axios = require("axios");
-const db = require('../src/node/db/DB')
+const db = require('ep_etherpad-lite/node/db/DB');
 
 // URL for wopiserver
 const wopiServerURL = "http://127.0.0.1:8880";
