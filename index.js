@@ -1,82 +1,64 @@
 'use strict';
 
-require('dotenv').config({ path: '/.env' })
-
-const fs = require('fs');
-const apiKey = fs.readFileSync('./APIKEY.txt', 'utf8');
-const api = require('etherpad-lite-client')
-const db = require('../src/node/db/DB')
 const axios = require("axios");
+const db = require('../src/node/db/DB')
 
-const wopiURL = "http://127.0.0.1:8880";
-
-// Etherpad API to test in-built API functions
-const etherpad = api.connect({
-  apikey: apiKey,
-  host: 'localhost',
-  port: 9001,
-})
+// URL for wopiserver
+const wopiServerURL = "http://127.0.0.1:8880";
 
 exports.padLoad = async function (pad, context) {
-  console.log('Pad was LOADED => ', context);
+  console.log('Pad context: ', context);
 }
 
-const postToWopi = async (padID) => {
-  const metadataFromDB = await db.get(`metadata:${padID}`);
-  console.log(metadataFromDB);
+const postToWopi = async (context) => {
+  const getMetadata = await db.get(`efssmetadata:${context.pad.id}:${context.author}`);
+  console.log('Metadata: ', getMetadata);
 
-  axios({
-    method: "POST",
-    url: `${wopiURL}/wopi/bridge/JGf2fombs8Ap2QOatZvh`,
+  axios.post(`${wopiServerURL}/wopi/bridge/${context.pad.id}`, {
     headers: {
-      'X-EFSS-Metadata': metadataFromDB,
-      'accept': '*/*' 
+    'X-EFSS-Metadata': getMetadata,
+    'accept': '*/*' 
     },
   })
-  .then(function (response) {
+  .then((response) => {
     console.log(JSON.stringify(response));
   })
-  .then(function (response) {
-    console.log(JSON.stringify(response));
-  })
-  .catch(function (error) {
-    console.log(JSON.stringify(error));
-    console.log('Couldn\'t POST data to the WOPI endpoint!');
+  .catch((error) => {
+    console.log(JSON.stringify(error), "Couldn\'t POST data to the WOPI endpoint!");
   });
 }
 
-exports.setMetadataForEFSS = async (_hookName, context) => {
-  context.app.get('/setMetadataForEFSS/:padID', async (req, res) => {
-
-    const params = req.params;
+exports.setEFSSMetadata = (hookName, context) => {
+  context.app.post('/setEFSSMetadata', async (req, res) => {
     const query = req.query;
-    console.log('Params: ', params, '\n', 'Query: ', query, '\n');
+    console.log('Query: ', query, '\n');
 
     let metadata = query.metadata;
-    console.log('metadata', metadata);
-    await db.set(`${metadata}:${params.padID}`, `${query.author_id}`);
+    console.log('Metadata:', metadata);
 
-    res.send(`${metadata}:${params.padID}:${query.author_id}`)
-    
-    await postToWopi(params.padID);
+    if (!query.padID || !query.authorID || !query.metadata)
+      res.send({code: 1, message:"Insufficient params or null values supplied!"})
+    else {
+      await db.set(`efssmetadata:${query.padID}:${query.authorID}`, metadata);
+      res.send({code: 0, message:"Content in DB set successfully"});
+    }
   });
+};
+
+exports.padUpdate = function (hookName, context) {
+  console.log('Pad was UPDATED', context)
+  postToWopi(context);
 }
 
-exports.clientReady = function(hook, message) {
-  console.log('CLIENT_READY FUNCTION INVOKED', message, '\n');
+exports.clientReady = function(hookName, message) {
+  console.log('CLIENT IS READY', message, '\n');
 };
 
 exports.userJoin = async (hookName, {authorId, displayName, padId}) => {
   console.log(`Author: ${authorId} with DisplayName: (${displayName}) joined pad: ${padId}`);
 }
 
-exports.padUpdate = async function (hook_name, context) {
-  console.log('Pad was UPDATED', context)
-  // this doesn't work since padUpdate is supposed to be synchronous
-  // await postToWopi(context.pad.id);
-}
-
-exports.userLeave = function(hook, session, callback) {
+exports.userLeave = function(hookName, session, callback) {
   console.log('%s left pad %s', session.author, session.padId, session);
 
   callback(new Promise(
