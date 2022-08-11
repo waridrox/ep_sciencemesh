@@ -3,20 +3,21 @@
 const axios = require("axios");
 const db = require('ep_etherpad-lite/node/db/DB');
 
-// URL for wopiserver
-const wopiServerURL = "http://127.0.0.1:8880";
-
 exports.padLoad = async function (pad, context) {
   console.log('Pad context: ', context);
 }
 
 const postToWopi = async (context) => {
   const getMetadata = await db.get(`efssmetadata:${context.pad.id}:${context.author}`);
-  console.log('Metadata: ', getMetadata);
 
-  axios.post(`${wopiServerURL}/wopi/bridge/${context.pad.id}`, {
+  const queryParams = getMetadata.split(':');
+  const wopiSrc = queryParams[0];
+  const accessToken = queryParams[1];
+
+  console.log('QueryParams: ', getMetadata);
+
+  axios.post(`${wopiSrc}/wopi/bridge/${context.pad.id}?access_token=${accessToken}`, {
     headers: {
-    'X-EFSS-Metadata': getMetadata,
     'accept': '*/*' 
     },
   })
@@ -33,13 +34,15 @@ exports.setEFSSMetadata = (hookName, context) => {
     const query = req.query;
     console.log('Query: ', query, '\n');
 
-    let metadata = query.metadata;
-    console.log('Metadata:', metadata);
+    let wopiSrc = query.wopiSrc;
+    let accessToken = query.accessToken;
 
-    if (!query.padID || !query.authorID || !query.metadata)
+    console.log('wopiSrc: ', wopiSrc, 'accessToken: ', accessToken);
+    
+    if (!query.padID || !query.authorID || !query.wopiSrc || !query.accessToken)
       res.send({code: 1, message:"Insufficient params or null values supplied!"})
     else {
-      await db.set(`efssmetadata:${query.padID}:${query.authorID}`, metadata);
+      await db.set(`efssmetadata:${query.padID}:${query.authorID}`, `${(query.wopiSrc)}:${query.accessToken}`);
       res.send({code: 0, message:"Content in DB set successfully"});
     }
   });
