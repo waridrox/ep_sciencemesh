@@ -2,21 +2,32 @@
 
 const axios = require("axios");
 const db = require('ep_etherpad-lite/node/db/DB');
+const Url = require('url-parse');
 
 exports.padLoad = async function (pad, context) {
   console.log('Pad context: ', context);
 }
 
-const postToWopi = async (context) => {
+const getMetadata = async (context) => {
   const getMetadata = await db.get(`efssmetadata:${context.pad.id}:${context.author}`);
 
   const queryParams = getMetadata.split(':');
-  const wopiSrc = queryParams[0];
+  const wopiSrc = decodeURIComponent(queryParams[0])
+  const wopiHost = Url(wopiSrc).origin;
   const accessToken = queryParams[1];
 
-  console.log('QueryParams: ', getMetadata);
+  console.log('wopiHost: ', wopiHost, ' : wopiSrc: ', wopiSrc, ' accessToken: ', accessToken);
 
-  axios.post(`${wopiSrc}/wopi/bridge/${context.pad.id}?access_token=${accessToken}`, {
+  return [wopiHost, wopiSrc, accessToken];
+}
+
+const axiosCall = (wopiHost, wopiSrc, accessToken, padID, close=false) => {
+  let axiosURL = `${wopiHost}/wopi/bridge/${padID}?WOPISrc=${wopiSrc}&access_token=${accessToken}`;
+  if (close === true) {
+    axiosURL += '&close=true';
+  }
+
+  axios.post(axiosURL, {
     headers: {
     'accept': '*/*' 
     },
@@ -27,6 +38,11 @@ const postToWopi = async (context) => {
   .catch((error) => {
     console.log(JSON.stringify(error), "Couldn\'t POST data to the WOPI endpoint!");
   });
+}
+
+const postToWopi = async (context) => {
+  const [wopiHost, wopiSrc, accessToken] = await getMetadata(context);
+  axiosCall(wopiHost, wopiSrc, accessToken, context.pad.id);
 }
 
 exports.setEFSSMetadata = (hookName, context) => {
@@ -64,9 +80,20 @@ exports.userJoin = async (hookName, {authorId, displayName, padId}) => {
 exports.userLeave = function(hookName, session, callback) {
   console.log('%s left pad %s', session.author, session.padId, session);
 
+  const param = {
+    author: session.author,
+    pad: {
+      id: session.padId
+    }
+  };
+
   callback(new Promise(
-    (resolve, reject) => {
-        resolve(console.log('USER HAS LEFT THE PAD NOW'))
+    async (resolve, reject) => {
+      const [wopiHost, wopiSrc, accessToken] = await getMetadata(param);
+      axiosCall(wopiHost, wopiSrc, accessToken, session.padId, close=true);
+      await db.remove(`efssmetadata:${session.padId}:${session.author}`)
+      
+      resolve(console.log('User content from DB cleared successfully!'));
     }
   ))
   return;
