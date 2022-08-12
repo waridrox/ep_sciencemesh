@@ -11,7 +11,7 @@ exports.padLoad = async function (pad, context) {
 const getMetadata = async (context) => {
   const getMetadata = await db.get(`efssmetadata:${context.pad.id}:${context.author}`);
 
-  const queryParams = getMetadata.split(':');
+  const queryParams = getMetadata.split('*');
   const wopiSrc = decodeURIComponent(queryParams[0])
   const wopiHost = Url(wopiSrc).origin;
   const accessToken = queryParams[1];
@@ -58,7 +58,7 @@ exports.setEFSSMetadata = (hookName, context) => {
     if (!query.padID || !query.authorID || !query.wopiSrc || !query.accessToken)
       res.send({code: 1, message:"Insufficient params or null values supplied!"})
     else {
-      await db.set(`efssmetadata:${query.padID}:${query.authorID}`, `${(query.wopiSrc)}:${query.accessToken}`);
+      await db.set(`efssmetadata:${query.padID}:${query.authorID}`, `${(query.wopiSrc)}*${query.accessToken}`);
       res.send({code: 0, message:"Content in DB set successfully"});
     }
   });
