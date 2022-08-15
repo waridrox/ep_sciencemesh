@@ -5,12 +5,10 @@
       "client_hooks": {
       },
       "hooks": {
-        "padLoad": "ep_sciencemesh/index.js:padLoad", 
-        "padUpdate": "ep_sciencemesh/index.js:padUpdate",
-        "userLeave": "ep_sciencemesh/index.js:userLeave",
         "expressConfigure": "ep_sciencemesh/index.js:setEFSSMetadata",
-        "clientReady": "ep_sciencemesh/index.js:clientReady",
-        "userJoin": "ep_sciencemesh/index.js:userJoin"
+        "userJoin": "ep_sciencemesh/index.js:userJoin",
+        "padUpdate": "ep_sciencemesh/index.js:padUpdate",
+        "userLeave": "ep_sciencemesh/index.js:userLeave"
       }
     }
   ]
