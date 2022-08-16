@@ -1,8 +1,23 @@
 'use strict';
 
+const fs = require('fs');
+const assert = require('assert');
+
+const absolutePaths = require('ep_etherpad-lite/node/utils/AbsolutePaths');
+const apikeyFile = absolutePaths.makeAbsolute("./APIKEY.txt");
+const apiKey = fs.readFileSync(apikeyFile, "utf8");
+
+const api = require('etherpad-lite-client')
+
 const axios = require("axios");
 const db = require('ep_etherpad-lite/node/db/DB');
 const Url = require('url-parse');
+
+const etherpad = api.connect({
+  apikey: apiKey,
+  host: 'localhost',
+  port: 9001,
+})
 
 const getMetadata = async (context) => {
   const getMetadata = await db.get(`efssmetadata:${context.pad.id}:${context.author}`);
@@ -48,12 +63,19 @@ exports.setEFSSMetadata = async (hookName, context) => {
     const query = req.query;
     console.log('Query: ', query, '\n');
 
-    if (!query.padID || !query.wopiSrc || !query.accessToken || !query.apikey)
-      res.send({code: 1, message:"Insufficient params or null values supplied as arguments!"})
-    else {
-      await db.set(`efssmetadata:${query.padID}`, `${(query.wopiSrc)}:${query.accessToken}`);
-      res.send({code: 0, message:"Content in DB set successfully"});
-    }
+    await etherpad.getAttributePool({padID: query.padID}, async (error, data) => {
+      if (data !== null && (query.apikey === apiKey)) {
+        if (!query.padID || !query.wopiSrc || !query.accessToken || !query.apikey)
+          res.send({code: 1, message:"Insufficient params or null values supplied as arguments!"})
+        else {
+          await db.set(`efssmetadata:${query.padID}`, `${(query.wopiSrc)}:${query.accessToken}`);
+          res.send({code: 0, message:"Content in DB set successfully"});
+        }
+      }
+      else {
+        res.send({code: 1, message: "PadID or API key is invalid!"})
+      }
+    });
   });
 };
 
