@@ -1,22 +1,22 @@
 'use strict';
 
 const axios = require("axios");
+const apikeyEtherpad = require('ep_etherpad-lite/node/handler/APIHandler').exportedForTestingOnly.apiKey;
 const api = require('ep_etherpad-lite/node/db/API');
 const db = require('ep_etherpad-lite/node/db/DB');
-const Url = require('url-parse');
 const { debounce } = require('lodash');
 
 const getMetadata = async (context) => {
-  const getMetadata = await db.get(`efssmetadata:${context.pad.id}:${context.author}`);
+  const getMetadata = await db.get(`efssmetadata:${context.pad.id}:${context.author}`).catch((err) => { console.error(err.message) })
 
-  console.log({code: 0, metadataFromDb: getMetadata});
+  console.log(getMetadata ? {code: 0, metadataFromDb: getMetadata} : {code: 1, metadataFromDb: getMetadata});
   if (getMetadata) {
     const queryParams = getMetadata.split(':');
-    const wopiSrc = decodeURIComponent(queryParams[0])
+    const wopiSrc = decodeURIComponent(queryParams[0]);
     const wopiHost = Url(wopiSrc).origin;
     const accessToken = queryParams[1];
   
-    console.log({code: 0, metadataQueryParams: {wopiHost: wopiHost, wopiSrc: wopiSrc, accessToken: accessToken}});
+    console.log({code: 0, metadataParams: {wopiSrc: wopiSrc}});
   
     return [wopiHost, wopiSrc, accessToken];
   }
@@ -26,7 +26,7 @@ const getMetadata = async (context) => {
   }
 }
 
-const axiosCall = (wopiHost, wopiSrc, accessToken, padID, close=false) => {
+const wopiCall = (wopiHost, wopiSrc, accessToken, padID, close=false) => {
   let axiosURL = `${wopiHost}/wopi/bridge/${padID}?WOPISrc=${wopiSrc}&access_token=${accessToken}`;
   if (close === true) {
     axiosURL += '&close=true';
@@ -46,7 +46,7 @@ const postToWopi = async (context) => {
 
   if (metadata != null) {
     const [wopiHost, wopiSrc, accessToken] = metadata;
-    axiosCall(wopiHost, wopiSrc, accessToken, context.pad.id);
+    wopiCall(wopiHost, wopiSrc, accessToken, context.pad.id);
   }
 };
 
@@ -54,17 +54,24 @@ exports.setEFSSMetadata = async (hookName, context) => {
   context.app.post('/setEFSSMetadata', async (req, res) => {
     const query = req.query;
     console.log({code: 0, query: query});
-    
-    const response = await api.listAllPads();
-    console.log({code: 0, padList: response});
 
-    if (response.padIDs.length == 0 || (response.padIDs.includes(query.padID) && response.padIDs.length > 0)) {
-      if (!query.padID || !query.wopiSrc || !query.accessToken || !query.apikey)
-        res.send({code: 1, message:"Insufficient params or null values supplied as arguments!"})
-      else {
-        await db.set(`efssmetadata:${query.padID}`, `${(query.wopiSrc)}:${query.accessToken}`);
-        res.send({code: 0, message:"Content in DB set successfully"});
+    if (query.apikey === apikeyEtherpad) {
+      console.log('APIKEY FROM APIHANDLER FUNC: ', apikeyEtherpad, 'APIKEY FROM QUERY: ', query.apikey);
+  
+      const padList = await api.listAllPads();
+  
+      if (padList.padIDs.length == 0 || padList.padIDs.includes(query.padID)) {
+        if (!query.padID || !query.wopiSrc || !query.accessToken || !query.apikey)
+          res.send({code: 1, message: "Insufficient params or null values supplied as arguments!"});
+        else {
+          await db.set(`efssmetadata:${query.padID}`, `${(query.wopiSrc)}:${query.accessToken}`);
+          res.send({code: 0, message: "Content set successfully in db"});
+        }
       }
+    }
+
+    else {
+      console.error('Supplied PadID or API key in query is invalid');
     }
   });
 };
@@ -82,12 +89,11 @@ exports.userJoin = async (hookName, {authorId, displayName, padId}) => {
 
   if (dbval) {
     await db.set(`${dbkey}:${authorId}`, dbval);
-    console.log({code: 0, message: "metadata set in db successfully"});
+    console.log({code: 0, message: "Author metadata set successfully in db"});
     await db.remove(dbkey);
-    console.log({code: 0, message: "removed initial metadata from db"});
   }
   else {
-    throw new Error("metadata field missing in db!");
+    throw new Error("Author data doesn\'t exist");
   }
 }
 
