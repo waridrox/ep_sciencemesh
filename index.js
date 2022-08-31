@@ -4,6 +4,8 @@ const axios = require("axios");
 const apikeyEtherpad = require('ep_etherpad-lite/node/handler/APIHandler').exportedForTestingOnly.apiKey;
 const api = require('ep_etherpad-lite/node/db/API');
 const db = require('ep_etherpad-lite/node/db/DB');
+const { URL } = require('url');
+
 const { debounce } = require('lodash');
 
 const getMetadata = async (context) => {
@@ -13,7 +15,7 @@ const getMetadata = async (context) => {
   if (getMetadata) {
     const queryParams = getMetadata.split(':');
     const wopiSrc = decodeURIComponent(queryParams[0]);
-    const wopiHost = Url(wopiSrc).origin;
+    const wopiHost = new URL(wopiSrc).origin;
     const accessToken = queryParams[1];
   
     console.log({code: 0, metadataParams: {wopiSrc: wopiSrc}});
@@ -110,19 +112,18 @@ exports.userLeave = function(hookName, session, callback) {
 
   callback(new Promise(
     async (resolve, reject) => {
-      const metadata = await getMetadata(param);
-      const currentUsers = (api.padUsersCount(session.padId)).padUsersCount;
 
-      console.log({code: 0, currentPadUsersCount: currentUsers});
-      if (metadata !== null && currentUsers == 0) {
+      const metadata = await getMetadata(param).catch((err) => { console.error(err.message) });
+
+      if (metadata !== null) {
         const [wopiHost, wopiSrc, accessToken] = metadata;
-        axiosCall(wopiHost, wopiSrc, accessToken, session.padId, true);
-        await db.remove(`efssmetadata:${session.padId}:${session.author}`)
-        
-        resolve(console.log({code: 0, message:"User content from DB cleared successfully"}));
+        wopiCall(wopiHost, wopiSrc, accessToken, session.padId, true);
+        await db.remove(`efssmetadata:${session.padId}:${session.author}`);
+
+        resolve(console.log({code: 0, message:`Exited author content removed successfully from db`}));
       }
       else {
-        reject(console.log({code: 0, message: "Cannot exit when pad authors are still editing"}));
+        reject(console.log({code: 0, message: `Author data doesn\'t exist`}));
       }
     }
   ))
