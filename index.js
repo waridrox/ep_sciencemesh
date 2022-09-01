@@ -36,10 +36,22 @@ const wopiCall = (wopiHost, wopiSrc, accessToken, padID, close=false) => {
 
   axios.post(axiosURL)
   .then((response) => {
-    console.log({code: 0, response: JSON.stringify(response)});
+    if (response.status === 200) {
+      console.log({code: 0, message: `${response.statusText}, Request executed successfully`});
+    }
+    if (response.status === 202) {
+      console.log({code: 0, message: `${response.statusText}, Enqueued action to the request`});
+    }
   })
   .catch((error) => {
-    console.log({code: 0, error: JSON.stringify(error)});
+    if (error.status === 400 || error.status === 500) {
+      console.log({code: 0, message: `${error.statusText}. This form of request is denied`});
+      // lock the contents of the pad (by removing sessionID)
+      process.exit(1);
+    }
+    else {
+      console.log({code: 0, message: `${error.statusText}, Error occured while responding to the request`});
+    }
   });
 };
 
