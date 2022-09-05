@@ -38,8 +38,11 @@ const wopiCall = (wopiHost, wopiSrc, accessToken, padID, close=false) => {
   if (close === true) {
     axiosURL += '&close=true';
   }
-
-  axios.post(axiosURL)
+  axios.post(axiosURL, {}, {    // TODO it's more standard/elegant to pass query parameters as 2nd arg rather than in the URL
+    headers: {
+      'X-EFSS-Bridged-App': 'Etherpad'
+    }
+  })
   .then((response) => {
     console.log(stringifyData(response));
     if (response.status === 200) {
@@ -74,7 +77,9 @@ exports.setEFSSMetadata = async (hookName, context) => {
 
     console.log(stringifyData({code:0,query:query}));
 
-    if (query.apikey === apikey) {
+    if (query.apikey !== apikey) {
+      console.error('Supplied API key is invalid, apikey should be', apikey);
+    }
       const mapperToGroupExists = await db.get(`mapper2group:1`).catch((err) => { return null; })
       const revisionCount = await api.getRevisionsCount(query.padID).catch((err) => { if (err.name === 'apierror') return null; });
 
@@ -90,11 +95,6 @@ exports.setEFSSMetadata = async (hookName, context) => {
         console.error('PadID is invalid');
         res.send(stringifyData({code:1,message:"PadID is invalid"}));
       }
-    }
-
-    else {
-      console.error('Supplied API key is invalid');
-      res.send(stringifyData({code:1,message:"Supplied API key is invalid"}));
     }
   });
 };
