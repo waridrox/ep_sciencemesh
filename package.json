@@ -1,6 +1,6 @@
 {
   "name": "ep_sciencemesh",
-  "version": "0.0.10",
+  "version": "0.0.12",
   "description": "Etherpad plugin to support collaborative sharing leveraging cs3 wopi server.",
   "main": "index.js",
   "scripts": {

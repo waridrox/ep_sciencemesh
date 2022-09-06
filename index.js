@@ -95,7 +95,6 @@ exports.setEFSSMetadata = async (hookName, context) => {
         console.error('PadID is invalid');
         res.send(stringifyData({code:1,message:"PadID is invalid"}));
       }
-    }
   });
 };
 
