@@ -17,7 +17,7 @@
     "cern"
   ],
   "author": "waridrox",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/waridrox/ep_sciencemesh.git/issues"
   },
