@@ -74,27 +74,31 @@ const postToWopi = async (context) => {
 exports.setEFSSMetadata = async (hookName, context) => {
   context.app.post('/setEFSSMetadata', async (req, res) => {
     const query = req.query;
-
     console.log(stringifyData({code:0,query:query}));
 
+    let isApiKeyValid = true, isPadIdValid = false;
     if (query.apikey !== apikey) {
+      isApiKeyValid = false;
       console.error('Supplied API key is invalid, apikey should be', apikey);
+      res.status(400).send(stringifyData({code:1,message:"API key is invalid"}));
     }
-      const mapperToGroupExists = await db.get(`mapper2group:1`).catch((err) => { return null; })
+    else {
       const revisionCount = await api.getRevisionsCount(query.padID).catch((err) => { if (err.name === 'apierror') return null; });
+      if (revisionCount) isPadIdValid = true;
 
-      if ((mapperToGroupExists && !revisionCount) || revisionCount) {
-        if (!query.padID || !query.wopiSrc || !query.accessToken || !query.apikey)
-          res.send(stringifyData({code:0,message:"Insufficient params or null values supplied as arguments!"}));
+      if (isPadIdValid && isApiKeyValid) {
+        if ((!query.padID|| !query.wopiSrc || !query.accessToken || !query.apikey))
+          res.status(400).send(stringifyData({code:1,message:"Insufficient params or null values supplied as arguments!"}));
         else {
           await db.set(`efssmetadata:${query.padID}`, `${(query.wopiSrc)}:${query.accessToken}`);
-          res.send(stringifyData({code:0,message:"Content set successfully in db"}));
+          res.status(200).send(stringifyData({code:0,message:"Content set successfully in db"}));
         }
       }
       else {
         console.error('PadID is invalid');
-        res.send(stringifyData({code:1,message:"PadID is invalid"}));
+        res.status(400).send(stringifyData({code:1,message:"PadID is invalid"}));
       }
+    }
   });
 };
 
