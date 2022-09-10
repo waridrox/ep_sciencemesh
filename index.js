@@ -8,6 +8,12 @@ const api = require('ep_etherpad-lite/node/db/API');
 const db = require('ep_etherpad-lite/node/db/DB');
 const absolutePaths = require('ep_etherpad-lite/node/utils/AbsolutePaths');
 const apikey = fs.readFileSync(absolutePaths.makeAbsolute('APIKEY.txt')).toString();
+const eejs = require('ep_etherpad-lite/node/eejs')
+
+exports.eejsBlock_modals = (hookName, args, cb) => {
+  args.content += eejs.require('ep_sciencemesh/templates/notify.ejs');
+  cb();
+};
 
 const stringifyData = (data) => {
   return JSON.stringify(data);
@@ -44,20 +50,46 @@ const wopiCall = (wopiHost, wopiSrc, accessToken, padID, close=false) => {
     }
   })
   .then((response) => {
-    console.log(stringifyData(response));
+    let responseStatusText = response.statusText, responseData = response.data;
+    let notificationData = responseData;
     if (response.status === 200) {
-      console.log(stringifyData({code:0,message:`${response.statusText}, Request executed successfully`}));
+      console.log(stringifyData({code:0,message:`${responseStatusText}, ${responseData.message}`}));
+      notificationData.status = response.status;
+      api.sendClientsMessage(padID, stringifyData(notificationData));
     }
     if (response.status === 202) {
-      console.log(stringifyData({code:0,message:`${response.statusText}, Enqueued action to the request`}));
+      console.log(stringifyData({code:0,message:`${responseStatusText}, Enqueued action to the request`}));
+      notificationData.status = response.status; 
+      api.sendClientsMessage(padID, stringifyData(notificationData));
     }
   })
   .catch((error) => {
     if (error.status === 400 || error.status === 500) {
-      console.log(stringifyData({code:1,message:`${error.statusText}. This form of request is denied`}));
+      let errorStatusText = error.statusText;
+
+      if (error.data.message) {
+        let errorData = error.data;
+        let notificationData = errorData;
+        notificationData.status = error.status;
+
+        console.log(stringifyData({code:1,message:`${errorStatusText}. ${errorData.message}.`}));
+        api.sendClientsMessage(padID, stringifyData(notificationData));
+      }
+      else {
+        let errorData = {};
+        let notificationData = errorData;
+        notificationData.status = error.status;
+
+        console.log(stringifyData({code:1,message:`${errorStatusText}. This form of request is denied`}));
+        api.sendClientsMessage(padID, stringifyData(notificationData));
+      }
     }
     else {
       console.log(stringifyData({code:0,message:`Error occured while responding to the wopi request`}));
+
+      let errorData = {};
+      let notificationData = errorData;
+      api.sendClientsMessage(padID, stringifyData(notificationData));
     }
   });
 };
