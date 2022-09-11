@@ -4,7 +4,8 @@
   "description": "Etherpad plugin to support collaborative sharing leveraging cs3 wopi server.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "bump": "npm version"
   },
   "repository": {
     "type": "git",
