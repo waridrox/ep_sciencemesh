@@ -3,8 +3,7 @@
     {
       "name": "main",
       "client_hooks": {
-        "documentReady": "ep_sciencemesh/static/js/index:documentReady",
-        "handleClientMessage_COLLABROOM": "ep_sciencemesh/static/js/index.js:handleClientMessage_COLLABROOM"
+        "handleClientMessage_CUSTOM": "ep_sciencemesh/static/js/index.js:handleClientMessage_CUSTOM"
       },
       "hooks": {
         "expressConfigure": "ep_sciencemesh/index.js:setEFSSMetadata",
