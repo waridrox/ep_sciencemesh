@@ -27,3 +27,16 @@ In an already existing etherpad project base directory, run
 Restart your etherpad-lite instance to recognize the plugin.
 
 To install etherpad, refer [here](https://github.com/ether/etherpad-lite#installation).
+
+
+## Publish a new version
+
+NPM publishing is automated. To release a new version, tag the local development repository with
+
+    npm version patch
+
+This will bump up one minor version. The general rules for semantic versioning are as follows: 
+
+    npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease | from-git]
+
+After this, head over to github releases section and tag the version with the new version obtained by executing the above.
