@@ -9,6 +9,9 @@ const db = require('ep_etherpad-lite/node/db/DB');
 const absolutePaths = require('ep_etherpad-lite/node/utils/AbsolutePaths');
 const apikey = fs.readFileSync(absolutePaths.makeAbsolute('APIKEY.txt')).toString();
 const eejs = require('ep_etherpad-lite/node/eejs')
+const padMessageHandler = require('ep_etherpad-lite/node/handler/PadMessageHandler');
+
+'use strict';
 
 exports.eejsBlock_modals = (hookName, args, cb) => {
   args.content += eejs.require('ep_sciencemesh/templates/notify.ejs');
@@ -19,22 +22,37 @@ const stringifyData = (data) => {
   return JSON.stringify(data);
 };
 
+const setNotificationData = (padID, message) => {
+  let padId = padID
+  const msg = {
+    type: 'COLLABROOM',
+    data: {
+      type: 'CUSTOM',
+      payload: {
+        action: 'recieveNotificationMessage',
+        padId,
+        message: message,
+      },
+    },
+  };
+  padMessageHandler.handleCustomObjectMessage(msg, false)
+}
+
 const getMetadata = async (context) => {
   const getMetadata = await db.get(`efssmetadata:${context.pad.id}:${context.author}`).catch((err) => { console.error(JSON.stringify(err.message)) });
 
-  console.log(getMetadata ? stringifyData({code:0,metadataFromDb: getMetadata}) : stringifyData({code:0,metadataFromDb: getMetadata}));
   if (getMetadata) {
     const queryParams = getMetadata.split(':');
     const wopiSrc = decodeURIComponent(queryParams[0]);
     const wopiHost = new URL(wopiSrc).origin;
     const accessToken = queryParams[1];
 
-    console.log(stringifyData({code:0,metadataParams:{wopiSrc:`${wopiSrc} URL for serving requests to the WOPI server`}}));
+    console.log(`URL for serving requests to the WOPI server: ${wopiSrc}`);
 
     return [wopiHost, wopiSrc, accessToken];
   }
   else {
-    console.log(stringifyData({code:0,metadataParams:`metadata values for WOPI server fetched as null from db`}));
+    console.log(`Metadata values for WOPI server fetched as null from db`);
     return null;
   }
 };
@@ -53,14 +71,13 @@ const wopiCall = (wopiHost, wopiSrc, accessToken, padID, close=false) => {
     let responseStatusText = response.statusText, responseData = response.data;
     let notificationData = responseData;
     if (response.status === 200) {
-      console.log(stringifyData({code:0,message:`${responseStatusText}, ${responseData.message}`}));
+      console.log(`Response from wopiserver:${responseStatusText}, ${responseData.message}`);
       notificationData.status = response.status;
-      api.sendClientsMessage(padID, stringifyData(notificationData));
+
+      setNotificationData(padID, notificationData)
     }
     if (response.status === 202) {
-      console.log(stringifyData({code:0,message:`${responseStatusText}, Enqueued action to the request`}));
-      notificationData.status = response.status; 
-      api.sendClientsMessage(padID, stringifyData(notificationData));
+      console.log(`Response from wopiserver: ${responseStatusText}. Enqueued action to the request`);
     }
   })
   .catch((error) => {
@@ -72,24 +89,20 @@ const wopiCall = (wopiHost, wopiSrc, accessToken, padID, close=false) => {
         let notificationData = errorData;
         notificationData.status = error.status;
 
-        console.log(stringifyData({code:1,message:`${errorStatusText}. ${errorData.message}.`}));
-        api.sendClientsMessage(padID, stringifyData(notificationData));
-      }
-      else {
-        let errorData = {};
-        let notificationData = errorData;
-        notificationData.status = error.status;
-
-        console.log(stringifyData({code:1,message:`${errorStatusText}. This form of request is denied`}));
-        api.sendClientsMessage(padID, stringifyData(notificationData));
+        console.log(`Response from wopiserver:${errorStatusText}. ${errorData.message}.`);
+        setNotificationData(padID, notificationData)
       }
     }
     else {
-      console.log(stringifyData({code:0,message:`Error occured while responding to the wopi request`}));
+      if (error.status !== 400 && /4[0-9][0-9]/.test(error.status) && error.data.message) {
 
-      let errorData = {};
-      let notificationData = errorData;
-      api.sendClientsMessage(padID, stringifyData(notificationData));
+        let errorData = error.data;
+        let notificationData = errorData;
+        notificationData.status = error.status;
+
+        console.log(`Error: ${errorStatusText}. ${errorData.message}.`);
+        setNotificationData(padID, notificationData);
+      }
     }
   });
 };
@@ -106,7 +119,7 @@ const postToWopi = async (context) => {
 exports.setEFSSMetadata = async (hookName, context) => {
   context.app.post('/setEFSSMetadata', async (req, res) => {
     const query = req.query;
-    console.log(stringifyData({code:0,query:query}));
+    console.log("Query from wopiserver: ", stringifyData(query));
 
     let isApiKeyValid = true, isPadIdValid = false;
     if (query.apikey !== apikey) {
@@ -135,7 +148,7 @@ exports.setEFSSMetadata = async (hookName, context) => {
 };
 
 exports.padUpdate = debounce((hookName, context) => {
-  console.log(stringifyData({code:0,message:`Pad content was updated after 3000 ms`}));
+  console.log(`Pad content was updated after 3000 ms`);
   postToWopi(context);
 }, 3000);
 
@@ -146,7 +159,7 @@ exports.userJoin = async (hookName, {authorId, displayName, padId}) => {
 
   if (dbval) {
     await db.set(`${dbkey}:${authorId}`, dbval);
-    console.log(stringifyData({code:0,message:'Pad author metadata set successfully in db'}));
+    console.log(`Pad author metadata set successfully in db`);
     await db.remove(dbkey);
   }
   else {
@@ -170,10 +183,10 @@ exports.userLeave = function(hookName, session, callback) {
         wopiCall(wopiHost, wopiSrc, accessToken, session.padId, true);
         await db.remove(`efssmetadata:${session.padId}:${session.author}`);
 
-        resolve(console.log(stringifyData({code:0,message:`Exited author content removed successfully from db`})));
+        resolve(console.log(`Exited author content removed successfully from db`));
       }
       else {
-        reject(console.error(stringifyData({code:0,message:`Author data doesn\'t exist`})));
+        reject(console.error(`Author data doesn\'t exist`));
       }
     }
   ))
