@@ -10,8 +10,7 @@ const absolutePaths = require('ep_etherpad-lite/node/utils/AbsolutePaths');
 const apikey = fs.readFileSync(absolutePaths.makeAbsolute('APIKEY.txt')).toString();
 const eejs = require('ep_etherpad-lite/node/eejs')
 const padMessageHandler = require('ep_etherpad-lite/node/handler/PadMessageHandler');
-
-'use strict';
+const server = require('ep_etherpad-lite/node/server');
 
 exports.eejsBlock_modals = (hookName, args, cb) => {
   args.content += eejs.require('ep_sciencemesh/templates/notify.ejs');
@@ -39,10 +38,10 @@ const setNotificationData = (padID, message) => {
 }
 
 const getMetadata = async (context) => {
-  const getMetadata = await db.get(`efssmetadata:${context.pad.id}:${context.author}`).catch((err) => { console.error(JSON.stringify(err.message)) });
+  const metaData = await db.get(`efssmetadata:${context.pad.id}:${context.author}`).catch((err) => { console.error(JSON.stringify(err.message)) });
 
-  if (getMetadata) {
-    const queryParams = getMetadata.split(':');
+  if (metaData) {
+    const queryParams = metaData.split(':');
     const wopiSrc = decodeURIComponent(queryParams[0]);
     const wopiHost = new URL(wopiSrc).origin;
     const accessToken = queryParams[1];
@@ -52,12 +51,12 @@ const getMetadata = async (context) => {
     return [wopiHost, wopiSrc, accessToken];
   }
   else {
-    console.log(`Metadata values for WOPI server fetched as null from db`);
+    console.log(`metaData values for WOPI server fetched as null from db`);
     return null;
   }
 };
 
-const wopiCall = (wopiHost, wopiSrc, accessToken, padID, close=false) => {
+const wopiCall = async (wopiHost, wopiSrc, accessToken, padID, close=false) => {
   let axiosURL = `${wopiHost}/wopi/bridge/${padID}?WOPISrc=${wopiSrc}&access_token=${accessToken}`;
   if (close === true) {
     axiosURL += '&close=true';
@@ -71,13 +70,13 @@ const wopiCall = (wopiHost, wopiSrc, accessToken, padID, close=false) => {
     let responseStatusText = response.statusText, responseData = response.data;
     let notificationData = responseData;
     if (response.status === 200) {
-      console.log(`Response from wopiserver:${responseStatusText}, ${responseData.message}`);
+      console.log(`Response ${response.status} from wopiserver: ${responseStatusText}. ${responseData.message}`);
       notificationData.status = response.status;
 
       setNotificationData(padID, notificationData)
     }
     if (response.status === 202) {
-      console.log(`Response from wopiserver: ${responseStatusText}. Enqueued action to the request`);
+      console.log(`Response ${response.status} from wopiserver: ${responseStatusText}. Enqueued action to the request`);
     }
   })
   .catch((error) => {
@@ -90,8 +89,9 @@ const wopiCall = (wopiHost, wopiSrc, accessToken, padID, close=false) => {
         notificationData.status = error.status;
 
         console.log(`Response from wopiserver:${errorStatusText}. ${errorData.message}.`);
-        setNotificationData(padID, notificationData)
+        setNotificationData(padID, notificationData);
       }
+      server.exit();
     }
     else {
       if (error.status !== 400 && /4[0-9][0-9]/.test(error.status) && error.data.message) {
@@ -112,7 +112,7 @@ const postToWopi = async (context) => {
 
   if (metadata != null) {
     const [wopiHost, wopiSrc, accessToken] = metadata;
-    wopiCall(wopiHost, wopiSrc, accessToken, context.pad.id);
+    await wopiCall(wopiHost, wopiSrc, accessToken, context.pad.id);
   }
 };
 
@@ -180,7 +180,7 @@ exports.userLeave = function(hookName, session, callback) {
       const metadata = await getMetadata(param).catch((err) => { console.error(err) });
       if (metadata !== null) {
         const [wopiHost, wopiSrc, accessToken] = metadata;
-        wopiCall(wopiHost, wopiSrc, accessToken, session.padId, true);
+        await wopiCall(wopiHost, wopiSrc, accessToken, session.padId, true);
         await db.remove(`efssmetadata:${session.padId}:${session.author}`);
 
         resolve(console.log(`Exited author content removed successfully from db`));
